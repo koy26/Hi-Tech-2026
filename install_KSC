@@ -1,0 +1,58 @@
+sudo apt update && sudo apt dist-upgrade -y
+sudo apt install -y curl wget perl libdigest-sha-perl
+
+# Postgresql
+sudo apt install -y postgresql postgresql-contrib
+sudo systemctl enable --now postgresql
+sudo systemctl status postgresql
+
+# Задание пароля
+sudo -u postgres psql -c "ALTER USER postgres WITH PASSWORD 'YourStrongDbPassword123!';"
+
+sudo nano /etc/postgresql/*/main/pg_hba.conf // Все md5
+
+sudo systemctl restart postgresql
+psql -U postgres -h 127.0.0.1 -W
+
+# KSC
+sudo groupadd kladmins
+sudo useradd -r -g kladmins -s /bin/false ksc
+sudo gpasswd -a ksc kladmins
+
+sudo apt install ./ksc64_*.deb
+sudo /opt/kaspersky/ksc64/lib/bin/setup/postinstall.pl
+
+    Лицензионное соглашение: ознакомьтесь и введите y.
+    Политика конфиденциальности: введите y.
+    IP / DNS-имя сервера: укажите статический IP-адрес или доменное имя сервера.
+    SSL-порт сервера: оставьте по умолчанию 13000.
+    Примерное количество управляемых устройств: выберите 1, 2 или 3 в зависимости от размера сети.
+    Группа безопасности: kladmins.
+    Учетная запись служб: ksc.
+    Выбор СУБД: введите 2 (PostgreSQL / Postgres Pro).
+    Хост БД: 127.0.0.1.
+    Порт БД: 5432.
+    Имя базы данных: kav (или оставьте имя по умолчанию).
+    Пользователь БД: postgres.
+    Пароль БД: введите пароль, заданный на этапе настройки PostgreSQL.
+По завершении работы скрипт создаст структуру таблиц и автоматически запустит системные демоны (kladminserver_srv, klnagent_srv и др.).
+
+sudo /opt/kaspersky/ksc64/sbin/kladduser -n kscadmin -p 'YourComplexKscPassword123!'
+
+# KSC Web Console
+sudo apt install ./ksc-web-console_*.deb
+sudo /opt/kaspersky/ksc-web-console/bin/ksc-web-console-setup.pl
+
+Язык интерфейса.
+Порт для Web Console (по умолчанию 8080 или 443 в зависимости от конфигурации SSL).
+Адрес Сервера администрирования (127.0.0.1) и порт подключения (13299 или 13000).
+Генерацию или путь к SSL-сертификату.
+
+sudo systemctl status kladminserver_srv
+sudo systemctl status ksc-web-console
+
+# UFW
+sudo ufw allow 13000/tcp
+sudo ufw allow 14000/tcp
+sudo ufw allow 8080/tcp
+
