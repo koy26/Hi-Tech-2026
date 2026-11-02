@@ -15,9 +15,13 @@ sudo systemctl restart postgresql
 psql -U postgres -h 127.0.0.1 -W
 
 # KSC
+sudo adduser ksc
 sudo groupadd kladmins
-sudo useradd -r -g kladmins -s /bin/false ksc
 sudo gpasswd -a ksc kladmins
+sudo usermod -g kladmins ksc
+sudo adduser ksciam
+sudo gpasswd -a ksciam kladmins
+sudo usermod -g kladmins ksciam
 
 sudo apt install ./ksc64_*.deb
 sudo /opt/kaspersky/ksc64/lib/bin/setup/postinstall.pl
