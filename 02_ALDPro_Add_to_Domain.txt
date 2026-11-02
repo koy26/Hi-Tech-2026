@@ -1,0 +1,34 @@
+# Настройка FQDN имени хоста
+sudo hostnamectl set-hostname pc-1.ald.company.lan
+
+# Проверка связи с контроллером домена
+ping dc-1.ald.company.lan
+
+# Добавление репозиториев ALD Pro
+
+nano /etc/apt/sources.list
+deb https://dl.astralinux.ru/astra/frozen/1.7_x86-64/1.7.7/uu/2/repository-base/ 1.7_x86-64 main contrib non-free
+deb https://dl.astralinux.ru/astra/frozen/1.7_x86-64/1.7.7/uu/2/repository-extended/ 1.7_x86-64 main contrib non-free
+
+sudo nano /etc/apt/sources.list.d/aldpro.list
+
+deb https://dl.astralinux.ru/aldpro/frozen/01/3.1.0/ 1.7_x86-64 main base
+
+sudo apt update
+
+# Установка клиента ALD Pro
+
+sudo apt update
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -q aldpro-client
+
+# Ввод в домен
+
+sudo /opt/rbta/aldpro/client/bin/aldpro-client-installer -c ald.company.lan -u admin -p 'пароль' -d pc-1 -i -f
+или
+sudo /opt/rbta/aldpro/client/bin/aldpro-client-installer
+
+# Перезагрузка и проверка
+
+reboot
+id admin@ald.company.lan   # доменный пользователь должен резолвиться
+klist                      # керберос-билет

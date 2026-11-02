@@ -1,0 +1,41 @@
+# Yandex Browser
+
+sudo touch /etc/opt/yandex/browser/policies/managed/mydomain.json
+{
+ "AuthServerAllowlist": "*.имя_домена",
+ "AuthNegotiateDelegateAllowlist": "*.имя_домена"
+}
+Скачать корневой сертификат из Ideco
+Установить его как корневой: Настройки-Системные-Управление сертификатами-Центры Сертификации-Импорт
+
+# Google Chrome
+sudo touch /etc/opt/chrome/policies/managed/mydomain.json
+{
+ "AuthServerAllowlist": "*.имя_домена" ,
+ "AuthNegotiateDelegateAllowlist": "*.имя_домена"
+}
+Скачать корневой сертификат из Ideco
+Установить его как корневой: Настройки-Конфиденциальность и безопасность-Безопасность-Настроить сертификаты-Центры сертификации-Импортировать
+
+# Chromium
+sudo touch /etc/chromium/policies/managed/mydomain.json
+{
+ "AuthServerAllowlist": "*.имя_домена" ,
+ "AuthNegotiateDelegateAllowlist": "*.имя_домена"
+Скачать корневой сертификат из Ideco
+Установить его как корневой: Настройки-Конфиденциальность и безопасность-Безопасность-Настроить сертификаты-Центры сертификации-Импортировать
+
+# Mozilla Firefox
+Открыть about:config в браузере
+security.enterprise_roots.enabled -> true
+network.automatic-ntlm-auth.trusted-uris -> FQDN сервера Ideco
+network.negotiate-auth.trusted-uris -> FQDN сервера Ideco
+Скачать корневой сертификат из Ideco
+Установить его как корневой: Настройки-Приватность и защита-Защита-Просмотр сертификатов-Центры сертификации-Импортировать
+
+Добавить в /etc/hosts
+Пример: 192.168.100.10 ngfw.domain.ald
+
+Windows PC:
+HKEY_LOCAL_MACHINE\SOFTWARE\Policies\YandexBrowser\ -> создаем параметр REG_SZ "AuthServerAllowlist" с содержимым: FQDN имя Ideco 
+HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Edge -> создаем параметр REG_SZ "AuthServerAllowlist" с содержимым: FQDN имя Ideco

@@ -1,0 +1,108 @@
+https://docs.ideco.ru/vpp-v15/ru/ngfw/advanced-setting/users/ald
+
+Памятка: присоединение IDECO к ALD Pro через отдельную учётную запись. Ниже — итоговый набор прав, с которым у тебя успешно выполнилось подключение.
+Проверенная конфигурация: ALD Pro 3.3.0, IDECO 22.7.14, домен sybnet.local, хост ideco-utm.sybnet.local, учётка ideco_svc.
+Это проверенный рабочий набор, а не доказанный минимальный набор разрешений.
+1. Какие объекты используем
+ОбъектНазвание / назначениеДоменная УЗideco_svcОбщая группа сервисных УЗsvc_accountsРоль для подключенияNew Host Enrollment AdministratorПривилегияNew Host EnrollmentДополнительное разрешениеIDECO enrollment role membership — изменение участников двух ролей ALD ProДополнительное разрешениеIDECO service keytab management — создание ключей служб данного IDECOРоль назначается непосредственно ideco_svc. Группе svc_accounts права подключения не выдаём.
+Учётка ideco_svc — обычный доменный пользователь, не LDAP-only запись из cn=sysaccounts.
+2. Получить билет администратора
+Все команды настройки выполняются на контроллере домена:
+kinit admin
+3. Создать роль и привилегию
+ipa role-add 'New Host Enrollment Administrator' \
+  --desc='Регистрация IDECO в домене'
+
+ipa privilege-add 'New Host Enrollment' \
+  --desc='Разрешения для присоединения IDECO к ALD Pro'
+4. Добавить права регистрации хоста и создания служб
+ipa privilege-add-permission 'New Host Enrollment' \
+  --permissions='System: Add Hosts' \
+  --permissions='System: Add krbPrincipalName to a Host' \
+  --permissions='System: Enroll a Host' \
+  --permissions='System: Manage Host Certificates' \
+  --permissions='System: Manage Host Enrollment Password' \
+  --permissions='System: Manage Host Keytab' \
+  --permissions='System: Manage Host Principals' \
+  --permissions='System: Add Services'
+Первые семь разрешений относятся к регистрации хоста. System: Add Services понадобилось дополнительно, поскольку IDECO создаёт Kerberos-службы, в частности HTTP и RADIUS.
+5. Разрешить изменение состава двух нужных ролей ALD Pro
+IDECO добавляет свой хост в:
+* ALDPRO - CIFS server;
+* ALDPRO - Organization units.
+Создаём разрешение только для этих двух ролей:
+ipa permission-add 'IDECO enrollment role membership' \
+  --right=write \
+  --attrs=member \
+  --subtree='cn=roles,cn=accounts,dc=sybnet,dc=local' \
+  --filter='(&(objectClass=groupOfNames)(|(cn=ALDPRO - CIFS server)(cn=ALDPRO - Organization units)))'
+Подключаем его к привилегии:
+ipa privilege-add-permission 'New Host Enrollment' \
+  --permissions='IDECO enrollment role membership'
+Ограничение: разрешение позволяет менять любых участников этих двух ролей. Оно не ограничивает добавляемого участника только хостом IDECO. Глобальное System: Modify Role Membership мы не выдавали.
+6. Разрешить создание ключей служб только данного IDECO
+ipa permission-add 'IDECO service keytab management' \
+  --right=write \
+  --attrs=krbPrincipalKey \
+  --attrs=krbLastPwdChange \
+  --subtree='cn=services,cn=accounts,dc=sybnet,dc=local' \
+  --filter='(&(objectClass=ipaService)(krbPrincipalName=*/ideco-utm.sybnet.local@SYBNET.LOCAL))'
+Подключаем разрешение:
+ipa privilege-add-permission 'New Host Enrollment' \
+  --permissions='IDECO service keytab management'
+Оно действует на службы вида:
+HTTP/ideco-utm.sybnet.local@SYBNET.LOCAL
+radius/ideco-utm.sybnet.local@SYBNET.LOCAL
+другие службы этого же хоста
+Управление ключами служб остальных хостов этим разрешением не предоставляется.
+7. Связать роль, привилегию и пользователя
+ipa role-add-privilege 'New Host Enrollment Administrator' \
+  --privileges='New Host Enrollment'
+
+ipa role-add-member 'New Host Enrollment Administrator' \
+  --users=ideco_svc
+Если членство в общей группе ещё не настроено:
+ipa group-add-member svc_accounts \
+  --users=ideco_svc
+8. Проверить назначение прав
+ipa role-show 'New Host Enrollment Administrator' --all
+
+ipa privilege-show 'New Host Enrollment' --all
+
+ipa permission-show 'IDECO enrollment role membership' --all
+
+ipa permission-show 'IDECO service keytab management' --all
+Проверить:
+ОбъектОжидаемое содержимоеРольПользователь ideco_svc, привилегия New Host EnrollmentПривилегияВосемь системных разрешений из шага 4 и два наших разрешенияРазрешение изменения ролейwrite, атрибут member, фильтр на две ролиРазрешение keytabwrite, атрибуты ключей, фильтр на службы ideco-utm.sybnet.local9. Подключить IDECO
+В интерфейсе IDECO:
+Пользователи ? Внешние каталоги ? ALD Pro ? Добавить
+Указать:
+ПолеЗначениеДоменsybnet.localDNS-серверIP контроллера доменаИмя сервера IDECOideco-utmУчётная записьideco_svcПарольПароль ideco_svcХост и службы предварительно создавать не нужно — их создаёт IDECO.
+Если от предыдущей неудачной попытки остались объекты, повторное подключение может остановиться на ошибке существующего хоста. Очистку таких объектов выполнять отдельно, убедившись, что они относятся к незавершённой попытке.
+10. Проверить после подключения
+ipa host-show ideco-utm.sybnet.local
+
+ipa service-find ideco-utm.sybnet.local
+
+ipa role-show 'ALDPRO - CIFS server'
+
+ipa role-show 'ALDPRO - Organization units'
+Ожидаемое состояние:
+* IDECO показывает успешное подключение.
+* Хост присутствует в обеих ролях ALD Pro.
+* Для используемых хоста и служб установлены ключи.
+* Пользователи и группы импортируются в IDECO.
+* Тестовый пользователь проходит нужный способ аутентификации.
+После подключения
+Созданная роль содержит права записи для присоединения, поэтому ideco_svc с ней не является учёткой «только чтение».
+После проверки синхронизации и аутентификации можно снять с неё всю роль подключения:
+kinit admin
+
+ipa role-remove-member 'New Host Enrollment Administrator' \
+  --users=ideco_svc
+Это не удаляет хост, его службы или членство хоста в системных ролях. После снятия роли проверь дальнейшую работу IDECO; в нашей диагностике успешное присоединение подтверждено, а работа после отзыва роли ещё не проверялась.
+Для последующего повторного присоединения роль возвращается:
+ipa role-add-member 'New Host Enrollment Administrator' \
+  --users=ideco_svc
+На уже работающей установке команды создания повторять не нужно. Для другого IDECO потребуется заменить FQDN в разрешении keytab; для другого домена — также LDAP Base DN и Kerberos Realm.
+
