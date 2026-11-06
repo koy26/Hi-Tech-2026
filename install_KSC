@@ -88,7 +88,26 @@ EOF
 
 sudo node /var/opt/kaspersky/ksc-web-console/setup.js
 
-
+{
+  "openAPIServers": {
+    "pools": [
+      {
+        "displayName": "Trusted servers",
+        "servers": [
+          {
+            "id": "ksc-local",
+            "address": "127.0.0.1",
+            "host": "127.0.0.1",
+            "port": 13299,
+            "name": "127.0.0.1",
+            "displayName": "127.0.0.1",
+            "certificate": "/var/opt/kaspersky/ksc-web-console/server_cert.pem",
+            "acceptUntrustedCert": true
+          }
+	      ]
+      }
+    ]
+  },
 
 
 
