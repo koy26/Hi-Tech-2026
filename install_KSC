@@ -16,7 +16,7 @@ sudo docker run -d \
   --name ksc-postgres14 \
   --restart always \
   --network host \
-  -e POSTGRES_PASSWORD='Password12' \
+  -e POSTGRES_PASSWORD='Password123' \
   -e POSTGRES_INITDB_ARGS="--locale=C --encoding=UTF8" \
   -v /var/lib/docker-postgresql/data:/var/lib/postgresql/data \
   postgres:14
@@ -69,22 +69,44 @@ sudo apt-get install -y curl ca-certificates gnupg
 curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
 sudo apt-get install -y nodejs
 
+-------------------------------------------------------------------------------
+systemctl status klnagent_srv.service
+systemctl status kladminserver_srv.service
+systemctl status klactprx_srv.service
+systemctl status klwebsrv_srv.service
+systemctl status kliam_srv.service
+-------------------------------------------------------------------------------
+
 # Установка консоли
 sudo dpkg -i ksc-web-console_*.deb
 apt-get install
-
+--------------------------------------------------------------------------------------
 # Создание конфига
-sudo tee /etc/ksc-web-console-setup.json << 'EOF'
+cat << 'EOF' > /etc/ksc-web-console-setup.json
 {
-  "serverAddress": "127.0.0.1",
-  "serverPort": 13299,
-  "webConsolePort": 8080,
-  "sslCertPath": "",
-  "sslKeyPath": "",
-  "generateCert": true,
-  "kscAccount": "ksc"
+  "address": "127.0.0.1",
+  "port": 8080,
+  "trusted": "127.0.0.1|13299|/var/opt/kaspersky/klnagent_srv/1093/cert/klserver.cer|127.0.0.1",
+  "user": "ksc",
+  "acceptEula": true
 }
 EOF
+
+systemctl stop KSCWebConsole
+cd /var/opt/kaspersky/ksc-web-console
+node setup.js /etc/ksc-web-console-setup.json
+
+chown -R ksc:kladmins /var/opt/kaspersky/ksc-web-console
+chmod 755 /var/opt/kaspersky/ksc-web-console
+chmod 755 /var/opt/kaspersky/ksc-web-console/node
+systemctl daemon-reload
+systemctl start KSCWebConsole
+
+--------------------------------------------------------------
+openssl x509 -inform DER -in /var/opt/kaspersky/klnagent_srv/1093/cert/klwebsrv.cer -out /var/opt/kaspersky/ksc-web-console/klwebsrv.pem 2>/dev/null || openssl x509 -in /var/opt/kaspersky/klnagent_srv/1093/cert/klwebsrv.cer -out /var/opt/kaspersky/ksc-web-console/klwebsrv.pem
+
+chown ksc:kladmins /var/opt/kaspersky/ksc-web-console/klwebsrv.pem
+chmod 644 /var/opt/kaspersky/ksc-web-console/klwebsrv.pem
 
 sudo node /var/opt/kaspersky/ksc-web-console/setup.js
 
@@ -101,61 +123,59 @@ sudo node /var/opt/kaspersky/ksc-web-console/setup.js
             "port": 13299,
             "name": "127.0.0.1",
             "displayName": "127.0.0.1",
-            "certificate": "/var/opt/kaspersky/ksc-web-console/server_cert.pem",
-            "acceptUntrustedCert": true
+            "certificate": "/var/opt/kaspersky/ksc-web-console/klwebsrv.pem",
+            "trust": true,
+            "acceptUntrustedCert": true,
+            "allowUntrusted": true
           }
 	      ]
       }
     ]
   },
 
+----------------------------------------------------------------
+nano /etc/systemd/system/KSCWebConsole.service
+   [Unit]
+      Description=Kaspersky Security Center Web Console
 
+      [Service]
+      Type=simple
+      WorkingDirectory=/var/opt/kaspersky/ksc-web-console
+	   Environment="NODE_TLS_REJECT_UNAUTHORIZED=0"
 
+      User=ksc
+      Group=kladmins
+      
 
+      
 
+      CapabilitiesParsec=PARSEC_CAP_PRIV_SOCK
+      ExecStart=/usr/bin/env /var/opt/kaspersky/ksc-web-console/node /var/opt/kaspersky/ksc-web-console/pm.js
+      TimeoutSec=1
+      Restart=always
+      RestartSec=1
 
+      [Install]
+      WantedBy=multi-user.target
 
+chown -R ksc:kladmins /var/opt/kaspersky/ksc-web-console
+chmod 755 /var/opt/kaspersky/ksc-web-console/node
 
-# KSC
-sudo adduser ksc
-sudo groupadd kladmins
-sudo gpasswd -a ksc kladmins
-sudo usermod -g kladmins ksc
-sudo adduser ksciam
-sudo gpasswd -a ksciam kladmins
-sudo usermod -g kladmins ksciam
+chmod 755 /var /var/opt /var/opt/kaspersky
+chown -R ksc:kladmins /var/opt/kaspersky/ksc-web-console
+chmod 755 /var/opt/kaspersky/ksc-web-console
+------------------------------------------------------------------
+Очистка кэша
+rm -rf /var/opt/kaspersky/ksc-web-console/session/* 2>/dev/null || true
+rm -rf /var/opt/kaspersky/ksc-web-console/tmp/* 2>/dev/null || true
+----------------------------------------------------------------
+Запуск nsqd как постоянного сервиса
+sudo -u ksc /var/opt/kaspersky/ksc-web-console/vendor/nsqd \
+  --data-path=/var/opt/kaspersky/ksc-web-console/data \
+  --tcp-address=127.0.0.1:4150 \
+  --http-address=127.0.0.1:4151 > /tmp/nsqd.log 2>&1 &
+------------------------------------------------------------
 
-sudo apt install ./ksc64_*.deb
-sudo /opt/kaspersky/ksc64/lib/bin/setup/postinstall.pl
-
-    Лицензионное соглашение: ознакомьтесь и введите y.
-    Политика конфиденциальности: введите y.
-    IP / DNS-имя сервера: укажите статический IP-адрес или доменное имя сервера.
-    SSL-порт сервера: оставьте по умолчанию 13000.
-    Примерное количество управляемых устройств: выберите 1, 2 или 3 в зависимости от размера сети.
-    Группа безопасности: kladmins.
-    Учетная запись служб: ksc.
-    Выбор СУБД: введите 2 (PostgreSQL / Postgres Pro).
-    Хост БД: 127.0.0.1.
-    Порт БД: 5432.
-    Имя базы данных: kav (или оставьте имя по умолчанию).
-    Пользователь БД: postgres.
-    Пароль БД: введите пароль, заданный на этапе настройки PostgreSQL.
-По завершении работы скрипт создаст структуру таблиц и автоматически запустит системные демоны (kladminserver_srv, klnagent_srv и др.).
-
-sudo /opt/kaspersky/ksc64/sbin/kladduser -n kscadmin -p 'YourComplexKscPassword123!'
-
-# KSC Web Console
-sudo apt install ./ksc-web-console_*.deb
-sudo /opt/kaspersky/ksc-web-console/bin/ksc-web-console-setup.pl
-
-Язык интерфейса.
-Порт для Web Console (по умолчанию 8080 или 443 в зависимости от конфигурации SSL).
-Адрес Сервера администрирования (127.0.0.1) и порт подключения (13299 или 13000).
-Генерацию или путь к SSL-сертификату.
-
-sudo systemctl status kladminserver_srv
-sudo systemctl status ksc-web-console
 
 # UFW
 sudo ufw allow 13000/tcp
