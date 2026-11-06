@@ -1,18 +1,101 @@
+# Подготовление
 sudo apt update && sudo apt dist-upgrade -y
 sudo apt install -y curl wget perl libdigest-sha-perl
 
-# Postgresql
-sudo apt install -y postgresql postgresql-contrib
-sudo systemctl enable --now postgresql
-sudo systemctl status postgresql
+# Удаление
+sudo systemctl stop postgresql 2>/dev/null || true
+sudo apt-get purge -y "postgresql-*"
 
-# Задание пароля
-sudo -u postgres psql -c "ALTER USER postgres WITH PASSWORD 'YourStrongDbPassword123!';"
+# Установка postgresql в контейнер
+sudo apt-get install -y docker.io
+sudo systemctl enable --now docker
 
+# Установка 14
+sudo mkdir -p /var/lib/docker-postgresql/data
+sudo docker run -d \
+  --name ksc-postgres14 \
+  --restart always \
+  --network host \
+  -e POSTGRES_PASSWORD='Password12' \
+  -e POSTGRES_INITDB_ARGS="--locale=C --encoding=UTF8" \
+  -v /var/lib/docker-postgresql/data:/var/lib/postgresql/data \
+  postgres:14
+
+# Создание базы
+sudo docker exec -it ksc-postgres14 psql -U postgres -c "CREATE DATABASE kav WITH OWNER = postgres ENCODING = 'UTF8' LC_COLLATE = 'C' LC_CTYPE = 'C' TEMPLATE = template0;"
+
+# KSC 15
+sudo adduser ksc
+sudo groupadd kladmins
+sudo gpasswd -a ksc kladmins
+sudo usermod -g kladmins ksc
+
+# KSC 16
+# Создание базы
+sudo docker exec -it ksc-postgres14 psql -U postgres -c "CREATE DATABASE iam WITH OWNER = postgres ENCODING = 'UTF8' LC_COLLATE = 'C' LC_CTYPE = 'C' TEMPLATE = template0;"
+
+sudo adduser ksc
+sudo groupadd kladmins
+sudo gpasswd -a ksc kladmins
+sudo usermod -g kladmins ksc
+sudo adduser ksciam
+sudo gpasswd -a ksciam kladmins
+sudo usermod -g kladmins ksciam
+
+# Установка сервера
+sudo apt install ksc64*.deb
+
+# Запуск инициализации
+sudo env LC_ALL=C LANG=C \
+  KLSRV_USER_KSC_ACCOUNT=ksc \
+  KLSRV_GROUP_KSC_ACCOUNT=kladmins \
+  KLSRV_INSTALL_IAM=0 \
+  /opt/kaspersky/ksc64/lib/bin/setup/postinstall.pl
+
+# Проверить
 sudo nano /etc/postgresql/*/main/pg_hba.conf // Все md5
+и конфиг postgresql
+max_connections = 151
+shared_buffers = 512MB
+temp_buffers = 24MB
+work_mem = 16MB
+maintenance_work_mem = 128MB
+max_stack_depth = максимальный размер стека (выполните команду 'ulimit -s', чтобы получить это значение в КБ) минус 1 МБ
+max_parallel_workers_per_gather = 0
+standard_conforming_strings = on
 
-sudo systemctl restart postgresql
-psql -U postgres -h 127.0.0.1 -W
+# Установка Node.js
+sudo apt-get install -y curl ca-certificates gnupg
+curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+sudo apt-get install -y nodejs
+
+# Установка консоли
+sudo dpkg -i ksc-web-console_*.deb
+apt-get install
+
+# Создание конфига
+sudo tee /etc/ksc-web-console-setup.json << 'EOF'
+{
+  "serverAddress": "127.0.0.1",
+  "serverPort": 13299,
+  "webConsolePort": 8080,
+  "sslCertPath": "",
+  "sslKeyPath": "",
+  "generateCert": true,
+  "kscAccount": "ksc"
+}
+EOF
+
+sudo node /var/opt/kaspersky/ksc-web-console/setup.js
+
+
+
+
+
+
+
+
+
 
 # KSC
 sudo adduser ksc
