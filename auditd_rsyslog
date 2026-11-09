@@ -1,0 +1,22 @@
+apt install rsyslog
+systemctl status rsyslog.service
+systemctl enable rsyslog.service
+nano /etc/audit/auditd.conf
+
+name_format=NONE
+log_format=ENRICHED
+
+systemctl restart auditd.service
+
+nano /etc/rsyslog.d/audit.conf
+
+$ModLoad imfile
+$InputFileName /var/log/audit/audit.log
+$InputFileTag tag_audit_log:
+$InputFileStateFile audit_log
+$InputFileSeverity info
+$InputFileFacility local6
+$InputRunFileMonitor
+*.* @@192.1.3.4:5858
+
+systemctl restart rsyslog.service
