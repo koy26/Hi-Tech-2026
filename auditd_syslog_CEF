@@ -1,0 +1,45 @@
+# установка
+sudo apt update
+sudo apt install audispd-plugins rsyslog
+-----------------------------------------
+
+# трансляция
+sudo nano /etc/audit/plugins.d/syslog.conf
+nano /etc/audisp/plugins.d/syslog.conf
+
+# сделать настройку
+active = yes
+direction = out
+path = /sbin/audisp-syslog
+type = builtin
+args = LOG_INFO LOG_LOCAL6
+format = string
+-------------------------------------------------------------
+
+# Определение шаблона форматирования CEF
+sudo nano /etc/rsyslog.d/30-audit-cef.conf
+
+
+template(name="AuditCEFTemplate" type="string"
+    string="CEF:0|Astra Linux|Auditd|1.7|%syslogtag%|%syslogfacility-text%|%syslogseverity-text%|rt=%timegenerated:::date-rfc3339% msg=%$rawmsg%\n"
+)
+
+# Фильтрация и пересылка событий local6 (auditd)
+if $syslogfacility-text == 'local6' then {
+    # Отправка на SIEM по протоколу TCP (для UDP используйте один символ '@')
+    action(
+        type="omfwd"
+        Target="192.168.1.50"
+        Port="514"
+        Protocol="tcp"
+        Template="AuditCEFTemplate"
+    )
+    # Завершить обработку события, чтобы оно не дублировалось в /var/log/syslog
+    stop
+}
+-----------------------------------------------------------------------------------------
+
+# применение настроек и перезапуск служб
+sudo rsyslogd -N1  должно быть без ошибок
+sudo systemctl restart rsyslog
+sudo service auditd restart
