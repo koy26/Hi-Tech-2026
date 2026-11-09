@@ -1,3 +1,8 @@
+# шара через fstab
+apt install cefs-utils
+nano /etc/fstab
+//192.168.1.200/Share /mnt/share cefs nofail 0 0
+----------------------------------------------------------------
 # Подготовление
 sudo apt update && sudo apt dist-upgrade -y
 sudo apt install -y curl wget perl libdigest-sha-perl
@@ -11,8 +16,8 @@ sudo apt-get install -y docker.io
 sudo systemctl enable --now docker
 
 # Установка 14
-sudo mkdir -p /var/lib/docker-postgresql/data
-sudo docker run -d \
+mkdir -p /var/lib/docker-postgresql/data
+docker run -d \
   --name ksc-postgres14 \
   --restart always \
   --network host \
@@ -43,9 +48,9 @@ sudo gpasswd -a ksciam kladmins
 sudo usermod -g kladmins ksciam
 
 # Установка сервера
-sudo apt install ksc64*.deb
+dpkg -i ksc64*.deb
 
-# Запуск инициализации
+# Запуск постинициализации
 sudo env LC_ALL=C LANG=C \
   KLSRV_USER_KSC_ACCOUNT=ksc \
   KLSRV_GROUP_KSC_ACCOUNT=kladmins \
@@ -64,24 +69,28 @@ max_stack_depth = максимальный размер стека (выполн
 max_parallel_workers_per_gather = 0
 standard_conforming_strings = on
 
+-------------------------------------------------
+# Установить klnagent
+apt install klnagent*.deb
+
+------------------------------------------------
+# Поставить npm
+apt install npm
+apt install nodejs npm
+--------------------------------------------
+
 # Установка Node.js
 sudo apt-get install -y curl ca-certificates gnupg
 curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
 sudo apt-get install -y nodejs
 
 -------------------------------------------------------------------------------
-systemctl status klnagent_srv.service
-systemctl status kladminserver_srv.service
-systemctl status klactprx_srv.service
-systemctl status klwebsrv_srv.service
-systemctl status kliam_srv.service
--------------------------------------------------------------------------------
 
 # Установка консоли
 sudo dpkg -i ksc-web-console_*.deb
 apt-get install
 --------------------------------------------------------------------------------------
-# Создание конфига
+# Создание конфига заменить 127.0.0.1 на адрес сервера
 cat << 'EOF' > /etc/ksc-web-console-setup.json
 {
   "address": "127.0.0.1",
@@ -102,6 +111,13 @@ chmod 755 /var/opt/kaspersky/ksc-web-console/node
 systemctl daemon-reload
 systemctl start KSCWebConsole
 
+
+
+
+
+
+
+# далее не обязательно
 --------------------------------------------------------------
 openssl x509 -inform DER -in /var/opt/kaspersky/klnagent_srv/1093/cert/klwebsrv.cer -out /var/opt/kaspersky/ksc-web-console/klwebsrv.pem 2>/dev/null || openssl x509 -in /var/opt/kaspersky/klnagent_srv/1093/cert/klwebsrv.cer -out /var/opt/kaspersky/ksc-web-console/klwebsrv.pem
 
